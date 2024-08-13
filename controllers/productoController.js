@@ -1,33 +1,43 @@
 const Producto = require("../models/Producto");
+const multer = require("multer");
+const upload = multer({ dest: "uploads/" });
 
 exports.crearProducto = async (req, res) => {
   try {
     const { name, description, price, sizes } = req.body;
-    const images = req.files.map((file) => file.path);
 
-    let sizesArray;
-    if (typeof sizes === "string") {
-      sizesArray = sizes.split(",");
-    } else if (Array.isArray(sizes)) {
-      sizesArray = sizes;
-    } else {
-      sizesArray = [];
+    // Parsear sizes
+    let parsedSizes = [];
+    if (sizes) {
+      try {
+        parsedSizes = JSON.parse(sizes);
+      } catch (error) {
+        console.error("Error parsing sizes:", error);
+        // Si no se puede parsear, asumimos que es una cadena simple y la convertimos en array
+        parsedSizes = sizes.split(",").map((size) => size.trim());
+      }
     }
+
+    // Manejar imágenes
+    const images = req.files ? req.files.map((file) => file.path) : [];
 
     const newProducto = new Producto({
       name,
       description,
       price: parseFloat(price),
-      sizes: sizesArray,
+      sizes: parsedSizes,
       images,
     });
 
     const savedProducto = await newProducto.save();
     res.status(201).json(savedProducto);
   } catch (error) {
+    console.error("Error al crear producto:", error);
     res.status(400).json({ message: error.message });
   }
 };
+
+exports.upload = upload.array("images");
 
 exports.obtenerProductos = async (req, res) => {
   try {
@@ -48,7 +58,6 @@ exports.obtenerProducto = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 exports.actualizarProducto = async (req, res) => {
   try {
     const { name, description, price, sizes } = req.body;
